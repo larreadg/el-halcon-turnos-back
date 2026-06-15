@@ -1,0 +1,7 @@
+/*.db*
+/turnos.lock
+.env
+.agents/
+.claude/
+CLAUDE.md
+CODEX.md

@@ -1,0 +1,19 @@
+RewriteEngine On
+
+# Pasar Authorization header a PHP
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+
+SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+# Denegar acceso directo a archivos sensibles
+<FilesMatch "^(\.env|.*\.db)$">
+    Require all denied
+</FilesMatch>
+
+# Deshabilitar listado de directorios
+Options -Indexes
