@@ -34,6 +34,9 @@ Flight::group('/api', function () {
     Flight::route('GET /turnos/configuracion',  [TurnoConfiguracionController::class, 'obtener']);
     Flight::route('POST /turnos/configuracion', [TurnoConfiguracionController::class, 'crear']);
 
+    // Turnos - acciones de admin
+    Flight::route('POST /turnos/finalizar-todos', [TurnoController::class, 'finalizarTodos']);
+
 }, [new AuthMiddleware(), new AdminMiddleware()]);
 
 // ──────────────────────────────────────────
@@ -42,8 +45,9 @@ Flight::group('/api', function () {
 Flight::group('/api', function () {
 
     // Turnos - atención
-    Flight::route('GET /turnos/activo',            [TurnoController::class, 'activo']);
-    Flight::route('POST /turnos/atender',          [TurnoController::class, 'atender']);
-    Flight::route('POST /turnos/@id/finalizar',    [TurnoController::class, 'finalizar']);
+    Flight::route('GET /turnos/activo',                      [TurnoController::class, 'activo']);
+    Flight::route('POST /turnos/atender',                    [TurnoController::class, 'atender']);
+    Flight::route('POST /turnos/@id/finalizar',              [TurnoController::class, 'finalizar']);
+    Flight::route('POST /turnos/@id/llamar-nuevamente',      [TurnoController::class, 'llamarNuevamente']);
 
 }, [new AuthMiddleware(), new MerchantMiddleware()]);

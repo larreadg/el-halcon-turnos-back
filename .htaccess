@@ -6,14 +6,24 @@ RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
 
 SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 
+# Enrutar todo lo que no sea un archivo ni directorio real hacia index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
 
-# Denegar acceso directo a archivos sensibles
-<FilesMatch "^(\.env|.*\.db)$">
+# Denegar acceso HTTP a cualquier archivo
+<FilesMatch ".+">
     Require all denied
 </FilesMatch>
+
+# Archivos servibles directamente
+<Files "index.php">
+    Require all granted
+</Files>
+
+<Files "limpiar_datos.php">
+    Require all granted
+</Files>
 
 # Deshabilitar listado de directorios
 Options -Indexes

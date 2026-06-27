@@ -14,9 +14,10 @@ class TurnoConfiguracionService
     public function obtenerActiva(string $fecha): ?array
     {
         $stmt = $this->db->prepare(
-            'SELECT id, fecha, numero_inicial, activo, creado_el, modificado_el
-             FROM turno_configuracion
-             WHERE fecha = ? AND activo = 1'
+            'SELECT tc.id, tc.fecha, tc.numero_inicial, tc.activo, tc.creado_el, tc.modificado_el,
+                    (SELECT MAX(t.numero) FROM turno t WHERE t.configuracion_id = tc.id) AS numero_actual
+             FROM turno_configuracion tc
+             WHERE tc.fecha = ? AND tc.activo = 1'
         );
         $stmt->execute([$fecha]);
         $row = $stmt->fetch();

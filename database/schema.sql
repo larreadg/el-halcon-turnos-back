@@ -76,6 +76,7 @@ CREATE TABLE turno (
 
     llamado_el TEXT NOT NULL,
     finalizado_el TEXT,
+    llamar_nuevamente INTEGER NOT NULL DEFAULT 0,
 
     creado_por INTEGER,
     modificado_por INTEGER,

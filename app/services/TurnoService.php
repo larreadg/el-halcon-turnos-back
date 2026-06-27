@@ -60,6 +60,24 @@ class TurnoService
     }
 
     /**
+     * Finaliza todos los turnos 'llamado' de la configuración activa de hoy (acción de admin).
+     * Devuelve la cantidad de turnos finalizados.
+     */
+    public function finalizarTodos(int $adminId): int
+    {
+        $ahora = FechaHelper::ahora();
+        $fecha = FechaHelper::hoy();
+
+        $stmt = $this->db->prepare(
+            "UPDATE turno SET estado = 'finalizado', finalizado_el = ?, modificado_por = ?, modificado_el = ?
+             WHERE estado = 'llamado' AND fecha = ?"
+        );
+        $stmt->execute([$ahora, $adminId, $ahora, $fecha]);
+
+        return $stmt->rowCount();
+    }
+
+    /**
      * Finaliza el turno activo del merchant.
      *
      * Devuelve:
@@ -84,7 +102,8 @@ class TurnoService
     }
 
     /**
-     * Datos para la pantalla pública: turnos en atención y los últimos finalizados.
+     * Datos para la pantalla pública: turnos en atención, últimos finalizados,
+     * y los que deben volver a sonar (consume y limpia llamar_nuevamente).
      */
     public function pantalla(): array
     {
@@ -109,10 +128,50 @@ class TurnoService
         );
         $ultimos->execute([$fecha]);
 
+        // Turnos marcados para re-anunciar (consume y limpia)
+        $nuevamente = $this->db->prepare(
+            "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto
+             FROM turno t
+             JOIN usuario u ON u.id = t.merchant_id
+             WHERE t.fecha = ? AND t.llamar_nuevamente = 1"
+        );
+        $nuevamente->execute([$fecha]);
+        $llamarNuevamente = $nuevamente->fetchAll();
+
+        if (count($llamarNuevamente) > 0) {
+            $this->db->prepare(
+                "UPDATE turno SET llamar_nuevamente = 0 WHERE fecha = ? AND llamar_nuevamente = 1"
+            )->execute([$fecha]);
+        }
+
         return [
-            'llamando'           => $llamando->fetchAll(),
+            'llamando'            => $llamando->fetchAll(),
             'ultimos_finalizados' => $ultimos->fetchAll(),
+            'llamarNuevamente'    => $llamarNuevamente,
         ];
+    }
+
+    /**
+     * Marca un turno para que la pantalla lo re-anuncie.
+     * Solo aplica si el turno está en estado 'llamado' y pertenece al merchant.
+     *
+     * Devuelve:
+     *  - ['ok' => true]
+     *  - ['ok' => false, 'error' => 'no_encontrado']
+     */
+    public function marcarLlamarNuevamente(int $turnoId, int $merchantId): array
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE turno SET llamar_nuevamente = 1, modificado_por = ?, modificado_el = ?
+             WHERE id = ? AND merchant_id = ? AND estado = 'llamado'"
+        );
+        $stmt->execute([$merchantId, FechaHelper::ahora(), $turnoId, $merchantId]);
+
+        if ($stmt->rowCount() === 0) {
+            return ['ok' => false, 'error' => 'no_encontrado'];
+        }
+
+        return ['ok' => true];
     }
 
     /**
