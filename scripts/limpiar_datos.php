@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../config/config.php';
 
-$nuevaClaveAdmin = '';
+$nuevaClaveAdmin = '123456';
 
 $pdo = new PDO('sqlite:' . DB_PATH);
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

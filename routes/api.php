@@ -30,6 +30,14 @@ Flight::group('/api', function () {
     Flight::route('DELETE /merchants/@id',               [MerchantController::class, 'eliminar']);
     Flight::route('POST /merchants/@id/resetear-clave',  [MerchantController::class, 'resetearClave']);
 
+    // Boxes
+    Flight::route('GET /boxes',                      [BoxController::class, 'listar']);
+    Flight::route('POST /boxes',                     [BoxController::class, 'crear']);
+    Flight::route('GET /boxes/@id',                  [BoxController::class, 'obtener']);
+    Flight::route('PUT /boxes/@id',                  [BoxController::class, 'actualizar']);
+    Flight::route('DELETE /boxes/@id',               [BoxController::class, 'eliminar']);
+    Flight::route('POST /boxes/@id/resetear-clave',  [BoxController::class, 'resetearClave']);
+
     // Turnos - configuración diaria
     Flight::route('GET /turnos/configuracion',  [TurnoConfiguracionController::class, 'obtener']);
     Flight::route('POST /turnos/configuracion', [TurnoConfiguracionController::class, 'crear']);
