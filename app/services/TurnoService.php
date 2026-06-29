@@ -5,12 +5,10 @@ declare(strict_types=1);
 class TurnoService
 {
     private PDO $db;
-    private string $lockFile;
 
     public function __construct()
     {
-        $this->db       = Flight::get('db');
-        $this->lockFile = dirname(DB_PATH) . '/turnos.lock';
+        $this->db = Flight::get('db');
     }
 
     /**
@@ -22,15 +20,14 @@ class TurnoService
      */
     public function atender(int $merchantId): array
     {
-        $lock = fopen($this->lockFile, 'c');
-
-        flock($lock, LOCK_EX);
-
+        $this->db->exec('BEGIN EXCLUSIVE');
         try {
-            return $this->asignarSiguiente($merchantId);
-        } finally {
-            flock($lock, LOCK_UN);
-            fclose($lock);
+            $resultado = $this->asignarSiguiente($merchantId);
+            $this->db->exec('COMMIT');
+            return $resultado;
+        } catch (\Throwable $e) {
+            $this->db->exec('ROLLBACK');
+            throw $e;
         }
     }
 
@@ -57,6 +54,54 @@ class TurnoService
         $stmt->execute([$config['id'], $fecha, $numero, 'llamado', $merchantId, $ahora, $merchantId, $ahora]);
 
         return ['ok' => true, 'turno' => $this->obtener((int) $this->db->lastInsertId())];
+    }
+
+    /**
+     * Reabre un turno finalizado: lo vuelve a 'llamado', reasigna el merchant
+     * y lo marca para que la pantalla lo anuncie.
+     *
+     * Devuelve:
+     *  - ['ok' => true,  'turno' => [...]]
+     *  - ['ok' => false, 'error' => 'no_encontrado' | 'turno_activo']
+     */
+    public function reabrir(int $turnoId, int $merchantId): array
+    {
+        if ($this->obtenerActivo($merchantId) !== null) {
+            return ['ok' => false, 'error' => 'turno_activo'];
+        }
+
+        $ahora = FechaHelper::ahora();
+        $fecha = FechaHelper::hoy();
+
+        $stmt = $this->db->prepare(
+            "UPDATE turno
+             SET estado = 'llamado', merchant_id = ?, llamado_el = ?,
+                 llamar_nuevamente = 1, modificado_por = ?, modificado_el = ?
+             WHERE id = ? AND fecha = ? AND estado = 'finalizado'"
+        );
+        $stmt->execute([$merchantId, $ahora, $merchantId, $ahora, $turnoId, $fecha]);
+
+        if ($stmt->rowCount() === 0) {
+            return ['ok' => false, 'error' => 'no_encontrado'];
+        }
+
+        return ['ok' => true, 'turno' => $this->obtener($turnoId)];
+    }
+
+    public function ultimosLlamados(): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT t.id, t.numero, t.finalizado_el, u.nombres, u.apellidos, u.puesto,
+                    CAST(SUBSTR(u.usuario, 2) AS INTEGER) AS box_numero
+             FROM turno t
+             JOIN usuario u ON u.id = t.merchant_id
+             WHERE t.fecha = ? AND t.estado = 'finalizado'
+             ORDER BY t.finalizado_el DESC
+             LIMIT 10"
+        );
+        $stmt->execute([FechaHelper::hoy()]);
+
+        return $stmt->fetchAll();
     }
 
     /**
@@ -110,7 +155,8 @@ class TurnoService
         $fecha = FechaHelper::hoy();
 
         $llamando = $this->db->prepare(
-            "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto
+            "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto,
+                    CAST(SUBSTR(u.usuario, 2) AS INTEGER) AS box_numero
              FROM turno t
              JOIN usuario u ON u.id = t.merchant_id
              WHERE t.fecha = ? AND t.estado = 'llamado'
@@ -130,7 +176,8 @@ class TurnoService
 
         // Turnos marcados para re-anunciar (consume y limpia)
         $nuevamente = $this->db->prepare(
-            "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto
+            "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto,
+                    CAST(SUBSTR(u.usuario, 2) AS INTEGER) AS box_numero
              FROM turno t
              JOIN usuario u ON u.id = t.merchant_id
              WHERE t.fecha = ? AND t.llamar_nuevamente = 1"

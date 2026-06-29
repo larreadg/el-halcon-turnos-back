@@ -38,6 +38,12 @@ class TurnoController
         ApiResponse::success('Pantalla obtenida', $service->pantalla())->send();
     }
 
+    public function ultimosLlamados(): void
+    {
+        $service = new TurnoService();
+        ApiResponse::success('Últimos llamados obtenidos', $service->ultimosLlamados())->send();
+    }
+
     public function finalizarTodos(): void
     {
         $adminId  = (int) Flight::get('user_id');
@@ -59,6 +65,25 @@ class TurnoController
         }
 
         ApiResponse::success('Turno marcado para re-anunciar')->send();
+    }
+
+    public function reabrir(string $id): void
+    {
+        $merchantId = (int) Flight::get('user_id');
+        $service    = new TurnoService();
+        $resultado  = $service->reabrir((int) $id, $merchantId);
+
+        if (!$resultado['ok']) {
+            if ($resultado['error'] === 'turno_activo') {
+                ApiResponse::error('Ya tenés un turno en atención. Finalizalo antes de reabrir otro.', 409)->send();
+                return;
+            }
+
+            ApiResponse::error('Turno no encontrado o no está finalizado', 404)->send();
+            return;
+        }
+
+        ApiResponse::success('Turno reabierto', $resultado['turno'])->send();
     }
 
     public function finalizar(string $id): void

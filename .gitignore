@@ -1,5 +1,4 @@
 /*.db*
-/turnos.lock
 .env
 .agents/
 .claude/

@@ -57,5 +57,15 @@ Flight::group('/api', function () {
     Flight::route('POST /turnos/atender',                    [TurnoController::class, 'atender']);
     Flight::route('POST /turnos/@id/finalizar',              [TurnoController::class, 'finalizar']);
     Flight::route('POST /turnos/@id/llamar-nuevamente',      [TurnoController::class, 'llamarNuevamente']);
+    Flight::route('POST /turnos/@id/reabrir',                [TurnoController::class, 'reabrir']);
 
 }, [new AuthMiddleware(), new MerchantMiddleware()]);
+
+// ──────────────────────────────────────────
+// Rutas protegidas (requieren JWT + rol ADMIN o MERCHANT)
+// ──────────────────────────────────────────
+Flight::group('/api', function () {
+
+    Flight::route('GET /turnos/ultimos-llamados', [TurnoController::class, 'ultimosLlamados']);
+
+}, [new AuthMiddleware(), new AdminOrMerchantMiddleware()]);
