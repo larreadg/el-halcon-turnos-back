@@ -76,7 +76,7 @@ class TurnoService
         $stmt = $this->db->prepare(
             "UPDATE turno
              SET estado = 'llamado', merchant_id = ?, llamado_el = ?,
-                 llamar_nuevamente = 1, modificado_por = ?, modificado_el = ?
+                 modificado_por = ?, modificado_el = ?
              WHERE id = ? AND fecha = ? AND estado = 'finalizado'"
         );
         $stmt->execute([$merchantId, $ahora, $merchantId, $ahora, $turnoId, $fecha]);
