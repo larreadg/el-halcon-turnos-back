@@ -92,11 +92,6 @@ class TurnoController
         $service    = new TurnoService();
         $resultado  = $service->finalizar((int) $id, $merchantId);
 
-        if (!$resultado['ok']) {
-            ApiResponse::error('Turno no encontrado o no está en atención', 404)->send();
-            return;
-        }
-
-        ApiResponse::success('Turno finalizado', $resultado['turno'])->send();
+        ApiResponse::success('Turno finalizado', $resultado['turno'] ?? null)->send();
     }
 }
