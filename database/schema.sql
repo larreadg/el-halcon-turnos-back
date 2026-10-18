@@ -93,3 +93,39 @@ CREATE TABLE turno (
 
 CREATE INDEX idx_turno_fecha_estado ON turno(fecha, estado);
 CREATE INDEX idx_turno_merchant_id ON turno(merchant_id);
+
+CREATE TABLE promocion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    titulo TEXT NOT NULL,
+    duracion_segundos INTEGER NOT NULL DEFAULT 10,
+    orden INTEGER NOT NULL DEFAULT 0,
+    activo INTEGER NOT NULL DEFAULT 1,
+
+    creado_por INTEGER,
+    modificado_por INTEGER,
+
+    creado_el TEXT NOT NULL,
+    modificado_el TEXT,
+
+    FOREIGN KEY (creado_por) REFERENCES usuario(id),
+    FOREIGN KEY (modificado_por) REFERENCES usuario(id)
+);
+
+CREATE INDEX idx_promocion_activo_orden ON promocion(activo, orden);
+
+CREATE TABLE promocion_archivo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    promocion_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('imagen', 'video')),
+    archivo TEXT NOT NULL,
+    mime TEXT NOT NULL,
+    orden INTEGER NOT NULL DEFAULT 0,
+
+    creado_el TEXT NOT NULL,
+
+    FOREIGN KEY (promocion_id) REFERENCES promocion(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_promocion_archivo_promocion ON promocion_archivo(promocion_id, orden);

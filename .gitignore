@@ -4,3 +4,5 @@
 .claude/
 CLAUDE.md
 CODEX.md
+storage/promociones/*
+!storage/promociones/.gitkeep

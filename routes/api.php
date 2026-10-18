@@ -11,6 +11,10 @@ Flight::route('POST /api/auth/login',   [AuthController::class, 'login']);
 // Turnos - pantalla pública
 Flight::route('GET /api/turnos/pantalla', [TurnoController::class, 'pantalla']);
 
+// Promociones - pantalla pública
+Flight::route('GET /api/promociones/pantalla',     [PromocionController::class, 'pantalla']);
+Flight::route('GET /api/promociones/archivos/@id', [PromocionController::class, 'archivo']);
+
 // ──────────────────────────────────────────
 // Rutas protegidas (requieren JWT + rol ADMIN)
 // ──────────────────────────────────────────
@@ -44,6 +48,15 @@ Flight::group('/api', function () {
 
     // Turnos - acciones de admin
     Flight::route('POST /turnos/finalizar-todos', [TurnoController::class, 'finalizarTodos']);
+
+    // Promociones
+    Flight::route('GET /promociones',                            [PromocionController::class, 'listar']);
+    Flight::route('POST /promociones',                           [PromocionController::class, 'crear']);
+    Flight::route('PUT /promociones/@id',                        [PromocionController::class, 'actualizar']);
+    Flight::route('DELETE /promociones/@id',                     [PromocionController::class, 'eliminar']);
+    Flight::route('POST /promociones/@id/archivos',              [PromocionController::class, 'agregarArchivos']);
+    Flight::route('PUT /promociones/@id/archivos/orden',         [PromocionController::class, 'ordenarArchivos']);
+    Flight::route('DELETE /promociones/@id/archivos/@archivoId', [PromocionController::class, 'eliminarArchivo']);
 
 }, [new AuthMiddleware(), new AdminMiddleware()]);
 

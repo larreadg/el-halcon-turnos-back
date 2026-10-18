@@ -24,3 +24,5 @@ if (file_exists($envFile)) {
 define('JWT_SECRET', $_ENV['JWT_SECRET'] ?? 'fallback-insecure-secret');
 define('JWT_EXPIRY', (int) ($_ENV['JWT_EXPIRY'] ?? 86400));
 define('DB_PATH',    __DIR__ . '/../' . ($_ENV['DB_NAME'] ?? 'el_halcon.db'));
+define('PROMOCIONES_PATH',      __DIR__ . '/../storage/promociones');
+define('PROMOCIONES_MAX_BYTES', (int) ($_ENV['PROMOCIONES_MAX_MB'] ?? 50) * 1024 * 1024);
