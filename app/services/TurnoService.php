@@ -164,16 +164,6 @@ class TurnoService
         );
         $llamando->execute([$fecha]);
 
-        $ultimos = $this->db->prepare(
-            "SELECT t.id, t.numero, t.finalizado_el, u.nombres, u.apellidos, u.puesto
-             FROM turno t
-             JOIN usuario u ON u.id = t.merchant_id
-             WHERE t.fecha = ? AND t.estado = 'finalizado'
-             ORDER BY t.finalizado_el DESC
-             LIMIT 5"
-        );
-        $ultimos->execute([$fecha]);
-
         // Turnos marcados para re-anunciar (consume y limpia)
         $nuevamente = $this->db->prepare(
             "SELECT t.id, t.numero, t.llamado_el, u.nombres, u.apellidos, u.puesto,
@@ -192,9 +182,8 @@ class TurnoService
         }
 
         return [
-            'llamando'            => $llamando->fetchAll(),
-            'ultimos_finalizados' => $ultimos->fetchAll(),
-            'llamarNuevamente'    => $llamarNuevamente,
+            'llamando'         => $llamando->fetchAll(),
+            'llamarNuevamente' => $llamarNuevamente,
         ];
     }
 
