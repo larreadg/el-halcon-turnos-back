@@ -54,7 +54,8 @@ Flight::group('/api', function () {
     Flight::route('POST /promociones',                           [PromocionController::class, 'crear']);
     // Antes de PUT /promociones/@id para que "estado" no se tome como id
     Flight::route('PUT /promociones/estado',                     [PromocionController::class, 'cambiarEstado']);
-    Flight::route('PUT /promociones/@id',                        [PromocionController::class, 'actualizar']);
+    Flight::route('GET /promociones/@id',                        [PromocionController::class, 'obtener']);
+    Flight::route('PUT /promociones/@id',                   [PromocionController::class, 'actualizar']);
     Flight::route('DELETE /promociones/@id',                     [PromocionController::class, 'eliminar']);
     Flight::route('POST /promociones/@id/archivos',              [PromocionController::class, 'agregarArchivos']);
     Flight::route('PUT /promociones/@id/archivos/orden',         [PromocionController::class, 'ordenarArchivos']);

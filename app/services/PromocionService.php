@@ -8,12 +8,12 @@ class PromocionService
         'image/jpeg' => ['imagen', 'jpg'],
         'image/png'  => ['imagen', 'png'],
         'image/webp' => ['imagen', 'webp'],
-        'image/gif'  => ['imagen', 'gif'],
         'video/mp4'  => ['video', 'mp4'],
         'video/webm' => ['video', 'webm'],
     ];
 
-    private const CALIDAD_WEBP = 85;
+    /** Calidades a probar en orden hasta que la imagen entre en el máximo permitido. */
+    private const CALIDADES_WEBP = [85, 75, 65, 50, 35];
 
     private const CAMPOS ='id, titulo, duracion_segundos, orden, activo, fecha_desde, fecha_hasta, dias_semana, creado_el, modificado_el';
 
@@ -322,7 +322,11 @@ class PromocionService
             $nombre = bin2hex(random_bytes(16)) . '.' . $extension;
             $ruta   = $this->ruta($nombre);
 
-            $guardado = $tipo === 'imagen' && $archivo['mime'] !== 'image/webp'
+            // Un WEBP que ya entra en el máximo se guarda sin volver a comprimirlo
+            $comprimir = $tipo === 'imagen'
+                && ($archivo['mime'] !== 'image/webp' || filesize($archivo['tmp']) > PROMOCIONES_MAX_BYTES_IMAGEN);
+
+            $guardado = $comprimir
                 ? self::convertirAWebp($archivo['tmp'], $archivo['mime'], $ruta)
                 : move_uploaded_file($archivo['tmp'], $ruta);
 
@@ -347,8 +351,8 @@ class PromocionService
     }
 
     /**
-     * Convierte una imagen JPG/PNG/GIF a WEBP con GD, conservando la transparencia.
-     * De los GIF animados solo se conserva el primer cuadro.
+     * Convierte una imagen JPG/PNG/WEBP a WEBP con GD, conservando la transparencia.
+     * Si el resultado supera PROMOCIONES_MAX_BYTES_IMAGEN, baja la calidad hasta que entre.
      */
     public static function convertirAWebp(string $origen, string $mime, string $destino): bool
     {
@@ -359,7 +363,7 @@ class PromocionService
         $imagen = match ($mime) {
             'image/jpeg' => @imagecreatefromjpeg($origen),
             'image/png'  => @imagecreatefrompng($origen),
-            'image/gif'  => @imagecreatefromgif($origen),
+            'image/webp' => @imagecreatefromwebp($origen),
             default      => false,
         };
 
@@ -371,7 +375,18 @@ class PromocionService
         imagealphablending($imagen, false);
         imagesavealpha($imagen, true);
 
-        $ok = imagewebp($imagen, $destino, self::CALIDAD_WEBP);
+        $ok = false;
+        foreach (self::CALIDADES_WEBP as $calidad) {
+            if (!imagewebp($imagen, $destino, $calidad)) {
+                break;
+            }
+
+            clearstatcache(true, $destino);
+            if (filesize($destino) <= PROMOCIONES_MAX_BYTES_IMAGEN) {
+                $ok = true;
+                break;
+            }
+        }
         imagedestroy($imagen);
 
         return $ok;

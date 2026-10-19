@@ -13,6 +13,19 @@ class PromocionController
         ApiResponse::success('Promociones obtenidas', $service->listar())->send();
     }
 
+    public function obtener(string $id): void
+    {
+        $service   = new PromocionService();
+        $promocion = $service->obtener((int) $id);
+
+        if (!$promocion) {
+            ApiResponse::error('Promoción no encontrada', 404)->send();
+            return;
+        }
+
+        ApiResponse::success('Promoción obtenida', $promocion)->send();
+    }
+
     public function pantalla(): void
     {
         $service = new PromocionService();
@@ -280,7 +293,7 @@ class PromocionController
         }
 
         $finfo    = new finfo(FILEINFO_MIME_TYPE);
-        $maxMb    = intdiv(PROMOCIONES_MAX_BYTES, 1024 * 1024);
+        $maxMb    = intdiv(PROMOCIONES_MAX_BYTES_VIDEO, 1024 * 1024);
         $archivos = [];
 
         foreach ($lista as $archivo) {
@@ -294,14 +307,15 @@ class PromocionController
                 return ApiResponse::error("No se pudo subir \"$nombre\"", 400);
             }
 
-            if ($archivo['size'] > PROMOCIONES_MAX_BYTES) {
-                return ApiResponse::error("\"$nombre\" no puede superar los {$maxMb} MB", 413);
-            }
-
             $mime = (string) $finfo->file($archivo['tmp']);
 
             if (PromocionService::tipoPorMime($mime) === null) {
-                return ApiResponse::error("\"$nombre\" tiene un formato no soportado. Usá JPG, PNG, WEBP, GIF, MP4 o WEBM", 400);
+                return ApiResponse::error("\"$nombre\" tiene un formato no soportado. Usá JPG, PNG, WEBP, MP4 o WEBM", 400);
+            }
+
+            // Las imágenes se comprimen al guardarlas, así que se aceptan hasta el mismo máximo que los videos
+            if ($archivo['size'] > PROMOCIONES_MAX_BYTES_VIDEO) {
+                return ApiResponse::error("\"$nombre\" no puede superar los {$maxMb} MB", 413);
             }
 
             // Las imágenes deben tener exactamente el tamaño del área del carrusel
