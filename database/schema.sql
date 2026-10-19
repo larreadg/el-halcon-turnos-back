@@ -102,6 +102,11 @@ CREATE TABLE promocion (
     orden INTEGER NOT NULL DEFAULT 0,
     activo INTEGER NOT NULL DEFAULT 1,
 
+    -- Días de publicación: rango opcional (YYYY-MM-DD) y días ISO "1,3,5" (NULL = sin restricción)
+    fecha_desde TEXT,
+    fecha_hasta TEXT,
+    dias_semana TEXT,
+
     creado_por INTEGER,
     modificado_por INTEGER,
 

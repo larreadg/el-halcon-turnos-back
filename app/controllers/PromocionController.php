@@ -102,7 +102,15 @@ class PromocionController
 
     public function actualizar(string $id): void
     {
-        $datos = $this->validar($this->body(), false);
+        $service = new PromocionService();
+        $actual  = $service->obtener((int) $id);
+
+        if (!$actual) {
+            ApiResponse::error('Promoción no encontrada', 404)->send();
+            return;
+        }
+
+        $datos = $this->validar($this->body(), false, $actual);
         if (is_string($datos)) {
             ApiResponse::error($datos, 400)->send();
             return;
@@ -113,7 +121,6 @@ class PromocionController
             return;
         }
 
-        $service       = new PromocionService();
         $modificadoPor = (int) Flight::get('user_id');
         $actualizado   = $service->actualizar((int) $id, $datos, $modificadoPor);
 
@@ -284,8 +291,9 @@ class PromocionController
 
     /**
      * Normaliza los campos editables. Devuelve el array de datos o un mensaje de error.
+     * $actual es la promoción guardada, para validar el rango de fechas cuando solo llega una.
      */
-    private function validar(array $body, bool $creando): array|string
+    private function validar(array $body, bool $creando, ?array $actual = null): array|string
     {
         $datos = [];
 
@@ -321,7 +329,55 @@ class PromocionController
             $datos['activo'] = filter_var($activo, FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
 
+        foreach (['fecha_desde' => 'desde', 'fecha_hasta' => 'hasta'] as $campo => $nombre) {
+            if ($creando || array_key_exists($campo, $body)) {
+                $fecha = trim((string) ($body[$campo] ?? ''));
+                if ($fecha !== '' && !$this->esFechaValida($fecha)) {
+                    return "La fecha $nombre debe tener el formato AAAA-MM-DD";
+                }
+                $datos[$campo] = $fecha === '' ? null : $fecha;
+            }
+        }
+
+        $desde = array_key_exists('fecha_desde', $datos) ? $datos['fecha_desde'] : ($actual['fecha_desde'] ?? null);
+        $hasta = array_key_exists('fecha_hasta', $datos) ? $datos['fecha_hasta'] : ($actual['fecha_hasta'] ?? null);
+        if ($desde !== null && $hasta !== null && $desde > $hasta) {
+            return 'La fecha hasta no puede ser anterior a la fecha desde';
+        }
+
+        if ($creando || array_key_exists('dias_semana', $body)) {
+            // Llega como lista (JSON) o como "1,3,5" (multipart); vacío = todos los días
+            $dias = $body['dias_semana'] ?? [];
+            if (is_string($dias)) {
+                $dias = $dias === '' ? [] : explode(',', $dias);
+            }
+            if (!is_array($dias)) {
+                return 'dias_semana debe ser una lista de días (1 = lunes ... 7 = domingo)';
+            }
+
+            $normalizados = [];
+            foreach ($dias as $dia) {
+                $dia = trim((string) $dia);
+                if (!ctype_digit($dia) || (int) $dia < 1 || (int) $dia > 7) {
+                    return 'dias_semana debe ser una lista de días (1 = lunes ... 7 = domingo)';
+                }
+                $normalizados[(int) $dia] = (int) $dia;
+            }
+            ksort($normalizados);
+
+            // Sin días o con los 7 se publica todos los días
+            $datos['dias_semana'] = !$normalizados || count($normalizados) === 7
+                ? null
+                : implode(',', $normalizados);
+        }
+
         return $datos;
+    }
+
+    private function esFechaValida(string $fecha): bool
+    {
+        $parseada = DateTime::createFromFormat('!Y-m-d', $fecha);
+        return $parseada !== false && $parseada->format('Y-m-d') === $fecha;
     }
 
     private function body(): array

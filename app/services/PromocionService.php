@@ -13,7 +13,7 @@ class PromocionService
         'video/webm' => ['video', 'webm'],
     ];
 
-    private const CAMPOS = 'id, titulo, duracion_segundos, orden, activo, creado_el, modificado_el';
+    private const CAMPOS = 'id, titulo, duracion_segundos, orden, activo, fecha_desde, fecha_hasta, dias_semana, creado_el, modificado_el';
 
     private PDO $db;
 
@@ -37,16 +37,24 @@ class PromocionService
     }
 
     /**
-     * Promociones activas con al menos un archivo, para la pantalla pública.
+     * Promociones activas con al menos un archivo que se publican hoy, para la pantalla pública.
      */
     public function listarActivas(): array
     {
-        $promociones = $this->db->query(
-            'SELECT id, titulo, duracion_segundos, orden
+        $stmt = $this->db->prepare(
+            "SELECT id, titulo, duracion_segundos, orden
              FROM promocion
              WHERE activo = 1
-             ORDER BY orden, id'
-        )->fetchAll();
+               AND (fecha_desde IS NULL OR fecha_desde <= :hoy)
+               AND (fecha_hasta IS NULL OR fecha_hasta >= :hoy)
+               AND (dias_semana IS NULL OR instr(',' || dias_semana || ',', :dia) > 0)
+             ORDER BY orden, id"
+        );
+        $stmt->execute([
+            'hoy' => FechaHelper::hoy(),
+            'dia' => ',' . date('N') . ',',
+        ]);
+        $promociones = $stmt->fetchAll();
 
         return array_values(array_filter(
             $this->conArchivos($promociones),
@@ -93,14 +101,17 @@ class PromocionService
 
         try {
             $stmt = $this->db->prepare(
-                'INSERT INTO promocion (titulo, duracion_segundos, orden, activo, creado_por, creado_el)
-                 VALUES (?, ?, ?, ?, ?, ?)'
+                'INSERT INTO promocion (titulo, duracion_segundos, orden, activo, fecha_desde, fecha_hasta, dias_semana, creado_por, creado_el)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $datos['titulo'],
                 $datos['duracion_segundos'],
                 $datos['orden'],
                 $datos['activo'],
+                $datos['fecha_desde'],
+                $datos['fecha_hasta'],
+                $datos['dias_semana'],
                 $creadoPor,
                 FechaHelper::ahora(),
             ]);
@@ -214,7 +225,7 @@ class PromocionService
         $campos = [];
         $params = [];
 
-        foreach (['titulo', 'duracion_segundos', 'orden', 'activo'] as $campo) {
+        foreach (['titulo', 'duracion_segundos', 'orden', 'activo', 'fecha_desde', 'fecha_hasta', 'dias_semana'] as $campo) {
             if (array_key_exists($campo, $datos)) {
                 $campos[] = "$campo = ?";
                 $params[] = $datos[$campo];
@@ -302,6 +313,7 @@ class PromocionService
 
     /**
      * Agrega a cada promoción su lista de archivos ordenada.
+     * Si se seleccionó dias_semana, lo devuelve como lista de días ISO (vacía = todos los días).
      */
     private function conArchivos(array $promociones): array
     {
@@ -328,6 +340,11 @@ class PromocionService
         }
 
         foreach ($promociones as &$promocion) {
+            if (array_key_exists('dias_semana', $promocion)) {
+                $promocion['dias_semana'] = $promocion['dias_semana'] === null
+                    ? []
+                    : array_map('intval', explode(',', (string) $promocion['dias_semana']));
+            }
             $promocion['archivos'] = $porPromocion[(int) $promocion['id']] ?? [];
         }
 

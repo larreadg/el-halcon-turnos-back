@@ -29,4 +29,17 @@ if (in_array('archivo', $columnasPromocion(), true)) {
     }
 }
 
+if (!in_array('dias_semana', $columnasPromocion(), true)) {
+    $pdo->exec('BEGIN IMMEDIATE');
+    try {
+        if (!in_array('dias_semana', $columnasPromocion(), true)) {
+            $pdo->exec(file_get_contents(__DIR__ . '/../database/migrations/003_promocion_publicacion.sql'));
+        }
+        $pdo->exec('COMMIT');
+    } catch (\Throwable $e) {
+        $pdo->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
 Flight::set('db', $pdo);
