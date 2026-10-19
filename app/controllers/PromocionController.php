@@ -132,6 +132,38 @@ class PromocionController
         ApiResponse::success('Promoción actualizada')->send();
     }
 
+    /**
+     * Activa o desactiva varias promociones a la vez.
+     */
+    public function cambiarEstado(): void
+    {
+        $body = $this->body();
+        $ids  = $body['ids'] ?? null;
+
+        if (!is_array($ids) || !$ids || array_filter($ids, fn ($v) => !is_numeric($v))) {
+            ApiResponse::error('ids debe ser una lista con las promociones a modificar', 400)->send();
+            return;
+        }
+
+        if (!array_key_exists('activo', $body)) {
+            ApiResponse::error('activo es requerido', 400)->send();
+            return;
+        }
+
+        $activo        = filter_var($body['activo'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        $modificadoPor = (int) Flight::get('user_id');
+        $service       = new PromocionService();
+        $modificadas   = $service->cambiarEstado(array_map('intval', $ids), $activo, $modificadoPor);
+
+        if ($modificadas === 0) {
+            ApiResponse::error('No se encontraron las promociones', 404)->send();
+            return;
+        }
+
+        $mensaje = $activo ? 'Promociones activadas' : 'Promociones desactivadas';
+        ApiResponse::success($mensaje, ['modificadas' => $modificadas])->send();
+    }
+
     public function eliminar(string $id): void
     {
         $service   = new PromocionService();

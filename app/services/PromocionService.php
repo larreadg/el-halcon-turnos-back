@@ -249,6 +249,25 @@ class PromocionService
         return $stmt->rowCount() > 0;
     }
 
+    /**
+     * Activa o desactiva varias promociones. Devuelve cuántas existían.
+     *
+     * @param int[] $ids
+     */
+    public function cambiarEstado(array $ids, int $activo, int $modificadoPor): int
+    {
+        $ids          = array_values(array_unique($ids));
+        $placeholders = implode(', ', array_fill(0, count($ids), '?'));
+
+        $stmt = $this->db->prepare(
+            "UPDATE promocion SET activo = ?, modificado_por = ?, modificado_el = ?
+             WHERE id IN ($placeholders)"
+        );
+        $stmt->execute([$activo, $modificadoPor, FechaHelper::ahora(), ...$ids]);
+
+        return $stmt->rowCount();
+    }
+
     public function eliminar(int $id): bool
     {
         $stmt = $this->db->prepare('SELECT archivo FROM promocion_archivo WHERE promocion_id = ?');
