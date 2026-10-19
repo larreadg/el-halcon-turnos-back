@@ -265,6 +265,17 @@ class PromocionController
                 return ApiResponse::error("\"$nombre\" tiene un formato no soportado. Usá JPG, PNG, WEBP, GIF, MP4 o WEBM", 400);
             }
 
+            // Las imágenes deben tener exactamente el tamaño del área del carrusel
+            if (PromocionService::tipoPorMime($mime) === 'imagen') {
+                $dimensiones = @getimagesize($archivo['tmp']);
+                [$ancho, $alto] = $dimensiones ?: [0, 0];
+
+                if ($ancho !== PROMOCIONES_ANCHO || $alto !== PROMOCIONES_ALTO) {
+                    $requerido = PROMOCIONES_ANCHO . ' × ' . PROMOCIONES_ALTO;
+                    return ApiResponse::error("\"$nombre\" mide {$ancho} × {$alto} px; debe medir exactamente {$requerido} px", 400);
+                }
+            }
+
             $archivos[] = ['tmp' => $archivo['tmp'], 'mime' => $mime];
         }
 
