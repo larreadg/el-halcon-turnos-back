@@ -13,7 +13,9 @@ class PromocionService
         'video/webm' => ['video', 'webm'],
     ];
 
-    private const CAMPOS = 'id, titulo, duracion_segundos, orden, activo, fecha_desde, fecha_hasta, dias_semana, creado_el, modificado_el';
+    private const CALIDAD_WEBP = 85;
+
+    private const CAMPOS ='id, titulo, duracion_segundos, orden, activo, fecha_desde, fecha_hasta, dias_semana, creado_el, modificado_el';
 
     private PDO $db;
 
@@ -309,25 +311,70 @@ class PromocionService
         $creados = [];
         foreach ($archivos as $archivo) {
             [$tipo, $extension] = self::MIMES[$archivo['mime']];
-            $nombre = bin2hex(random_bytes(16)) . '.' . $extension;
+            $mime = $archivo['mime'];
 
-            if (!move_uploaded_file($archivo['tmp'], $this->ruta($nombre))) {
+            // Las imágenes se guardan siempre como WEBP; los videos se guardan tal cual
+            if ($tipo === 'imagen') {
+                $extension = 'webp';
+                $mime      = 'image/webp';
+            }
+
+            $nombre = bin2hex(random_bytes(16)) . '.' . $extension;
+            $ruta   = $this->ruta($nombre);
+
+            $guardado = $tipo === 'imagen' && $archivo['mime'] !== 'image/webp'
+                ? self::convertirAWebp($archivo['tmp'], $archivo['mime'], $ruta)
+                : move_uploaded_file($archivo['tmp'], $ruta);
+
+            if (!$guardado) {
+                @unlink($ruta);
                 throw new RuntimeException('No se pudo guardar el archivo de la promoción');
             }
             $guardados[] = $nombre;
 
             $orden++;
-            $insert->execute([$promocionId, $tipo, $nombre, $archivo['mime'], $orden, FechaHelper::ahora()]);
+            $insert->execute([$promocionId, $tipo, $nombre, $mime, $orden, FechaHelper::ahora()]);
 
             $creados[] = [
                 'id'    => (int) $this->db->lastInsertId(),
                 'tipo'  => $tipo,
-                'mime'  => $archivo['mime'],
+                'mime'  => $mime,
                 'orden' => $orden,
             ];
         }
 
         return $creados;
+    }
+
+    /**
+     * Convierte una imagen JPG/PNG/GIF a WEBP con GD, conservando la transparencia.
+     * De los GIF animados solo se conserva el primer cuadro.
+     */
+    public static function convertirAWebp(string $origen, string $mime, string $destino): bool
+    {
+        if (!function_exists('imagewebp')) {
+            throw new RuntimeException('La extensión GD con soporte WEBP no está habilitada en el servidor');
+        }
+
+        $imagen = match ($mime) {
+            'image/jpeg' => @imagecreatefromjpeg($origen),
+            'image/png'  => @imagecreatefrompng($origen),
+            'image/gif'  => @imagecreatefromgif($origen),
+            default      => false,
+        };
+
+        if ($imagen === false) {
+            return false;
+        }
+
+        imagepalettetotruecolor($imagen);
+        imagealphablending($imagen, false);
+        imagesavealpha($imagen, true);
+
+        $ok = imagewebp($imagen, $destino, self::CALIDAD_WEBP);
+        imagedestroy($imagen);
+
+        return $ok;
     }
 
     /**
