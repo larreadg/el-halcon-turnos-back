@@ -29,6 +29,51 @@ class PromocionService
         return self::MIMES[$mime][0] ?? null;
     }
 
+    /**
+     * Detecta el MIME real de un archivo por su firma (primeros bytes), solo para los formatos
+     * soportados. No usa finfo porque la extensión fileinfo no está disponible en todos los hostings.
+     * Devuelve null si el contenido no corresponde a ningún formato soportado.
+     */
+    public static function detectarMime(string $ruta): ?string
+    {
+        $cabecera = (string) @file_get_contents($ruta, false, null, 0, 64);
+
+        if (str_starts_with($cabecera, "\xFF\xD8\xFF")) {
+            return 'image/jpeg';
+        }
+
+        if (str_starts_with($cabecera, "\x89PNG\r\n\x1A\n")) {
+            return 'image/png';
+        }
+
+        if (str_starts_with($cabecera, 'RIFF') && substr($cabecera, 8, 4) === 'WEBP') {
+            return 'image/webp';
+        }
+
+        // EBML: WEBM y Matroska comparten cabecera, se distinguen por el DocType
+        if (str_starts_with($cabecera, "\x1A\x45\xDF\xA3")) {
+            return preg_match('/\x42\x82.{1,8}webm/s', $cabecera) ? 'video/webm' : null;
+        }
+
+        // MP4: caja "ftyp" con la marca principal y las compatibles (de a 4 bytes)
+        if (substr($cabecera, 4, 4) === 'ftyp') {
+            $tamanio = unpack('N', substr($cabecera, 0, 4))[1];
+            $caja    = substr($cabecera, 8, max(0, min($tamanio, strlen($cabecera)) - 8));
+            $marcas  = array_map('rtrim', str_split($caja, 4));
+
+            // QuickTime (.mov), 3GP, audio (M4A/M4B) y fotos HEIC/AVIF también usan ftyp
+            if (str_starts_with($marcas[0], '3g') || in_array($marcas[0], ['qt', 'M4A', 'M4B', 'M4P', 'heic', 'heix', 'mif1', 'msf1', 'avif'], true)) {
+                return null;
+            }
+
+            $marcasMp4 = ['isom', 'iso2', 'iso3', 'iso4', 'iso5', 'iso6', 'mp41', 'mp42', 'avc1', 'M4V', 'mmp4', 'dash', 'MSNV'];
+
+            return array_intersect($marcas, $marcasMp4) ? 'video/mp4' : null;
+        }
+
+        return null;
+    }
+
     public function listar(): array
     {
         $promociones = $this->db->query(

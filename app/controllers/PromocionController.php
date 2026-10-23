@@ -292,8 +292,7 @@ class PromocionController
             return ApiResponse::error('No se pueden subir más de ' . self::MAXIMO_ARCHIVOS . ' archivos a la vez', 400);
         }
 
-        $finfo    = new finfo(FILEINFO_MIME_TYPE);
-        $maxMb    = intdiv(PROMOCIONES_MAX_BYTES_VIDEO, 1024 * 1024);
+        $maxMb   = intdiv(PROMOCIONES_MAX_BYTES_VIDEO, 1024 * 1024);
         $archivos = [];
 
         foreach ($lista as $archivo) {
@@ -307,7 +306,7 @@ class PromocionController
                 return ApiResponse::error("No se pudo subir \"$nombre\"", 400);
             }
 
-            $mime = (string) $finfo->file($archivo['tmp']);
+            $mime = PromocionService::detectarMime($archivo['tmp']) ?? '';
 
             if (PromocionService::tipoPorMime($mime) === null) {
                 return ApiResponse::error("\"$nombre\" tiene un formato no soportado. Usá JPG, PNG, WEBP, MP4 o WEBM", 400);
