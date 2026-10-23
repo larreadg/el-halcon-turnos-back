@@ -83,9 +83,10 @@ class MigracionHelper
      */
     public static function columnas(PDO $pdo, string $tabla): array
     {
-        $stmt = $pdo->prepare('SELECT name FROM pragma_table_info(?)');
-        $stmt->execute([$tabla]);
+        // PRAGMA no acepta parámetros bindeados; pragma_table_info(?) requiere SQLite 3.16+,
+        // que algunos hostings no tienen. El nombre se escapa como identificador.
+        $identificador = '"' . str_replace('"', '""', $tabla) . '"';
 
-        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+        return array_column($pdo->query("PRAGMA table_info({$identificador})")->fetchAll(PDO::FETCH_ASSOC), 'name');
     }
 }

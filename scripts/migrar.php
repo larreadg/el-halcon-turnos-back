@@ -27,6 +27,11 @@ function fallar(string $mensaje): never
     exit(1);
 }
 
+// En el hosting display_errors está apagado: mostrar el error en vez de cortar en silencio
+set_exception_handler(function (Throwable $e): void {
+    fallar('Error: ' . $e->getMessage());
+});
+
 $simular = $esCli ? in_array('--simular', $_SERVER['argv'] ?? [], true) : isset($_GET['simular']);
 
 // new PDO crearía una base vacía si el archivo no existe
@@ -40,7 +45,10 @@ $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
 $pdo->exec('PRAGMA foreign_keys = ON');
 $pdo->exec('PRAGMA journal_mode = WAL');
 
+$versionSqlite = (string) $pdo->query('SELECT sqlite_version()')->fetchColumn();
+
 echo 'Base: ' . realpath(DB_PATH) . "\n";
+echo "SQLite: {$versionSqlite}\n";
 
 if (!MigracionHelper::columnas($pdo, 'usuario')) {
     fallar('La base no tiene el esquema inicial (falta la tabla usuario). Crearla con database/schema.sql.');
@@ -58,8 +66,16 @@ if (!$pendientes) {
     }
 } else {
     $respaldo = DB_PATH . '.respaldo-' . date('Ymd-His');
-    $stmt = $pdo->prepare('VACUUM INTO ?');
-    $stmt->execute([$respaldo]);
+    if (version_compare($versionSqlite, '3.27.0', '>=')) {
+        $stmt = $pdo->prepare('VACUUM INTO ?');
+        $stmt->execute([$respaldo]);
+    } else {
+        // Sin VACUUM INTO: pasar el WAL al archivo principal y copiarlo
+        $pdo->query('PRAGMA wal_checkpoint(FULL)')->fetchAll();
+        if (!copy(DB_PATH, $respaldo)) {
+            fallar('No se pudo crear el respaldo ' . $respaldo);
+        }
+    }
     echo 'Respaldo: ' . realpath($respaldo) . "\n";
 
     foreach (MigracionHelper::aplicarPendientes($pdo) as $migracion) {
