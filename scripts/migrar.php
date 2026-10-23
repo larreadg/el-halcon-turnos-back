@@ -4,17 +4,34 @@ declare(strict_types=1);
 
 // Aplica las migraciones pendientes de database/migrations/ y compara la base con database/schema.sql.
 // Antes de migrar deja un respaldo de la base junto al archivo original.
-// Uso: php scripts/migrar.php [--simular]
+// Uso por consola: php scripts/migrar.php [--simular]
+// Uso por web (hosting sin consola): migrar.php[?simular=1]
 
 require_once __DIR__ . '/../config/config.php';
 require_once __DIR__ . '/../app/helpers/MigracionHelper.php';
 
-$simular = in_array('--simular', $argv, true);
+$esCli = PHP_SAPI === 'cli';
+
+if (!$esCli) {
+    header('Content-Type: text/plain; charset=utf-8');
+}
+
+function fallar(string $mensaje): never
+{
+    if (PHP_SAPI === 'cli') {
+        fwrite(STDERR, $mensaje . "\n");
+    } else {
+        http_response_code(500);
+        echo $mensaje . "\n";
+    }
+    exit(1);
+}
+
+$simular = $esCli ? in_array('--simular', $_SERVER['argv'] ?? [], true) : isset($_GET['simular']);
 
 // new PDO crearía una base vacía si el archivo no existe
 if (!is_file(DB_PATH)) {
-    fwrite(STDERR, 'No existe la base ' . DB_PATH . " (revisar DB_NAME en .env).\n");
-    exit(1);
+    fallar('No existe la base ' . DB_PATH . ' (revisar DB_NAME en .env).');
 }
 
 $pdo = new PDO('sqlite:' . DB_PATH);
@@ -26,8 +43,7 @@ $pdo->exec('PRAGMA journal_mode = WAL');
 echo 'Base: ' . realpath(DB_PATH) . "\n";
 
 if (!MigracionHelper::columnas($pdo, 'usuario')) {
-    fwrite(STDERR, "La base no tiene el esquema inicial (falta la tabla usuario). Crearla con database/schema.sql.\n");
-    exit(1);
+    fallar('La base no tiene el esquema inicial (falta la tabla usuario). Crearla con database/schema.sql.');
 }
 
 // 1. Migraciones
