@@ -24,3 +24,10 @@ if (file_exists($envFile)) {
 define('JWT_SECRET', $_ENV['JWT_SECRET'] ?? 'fallback-insecure-secret');
 define('JWT_EXPIRY', (int) ($_ENV['JWT_EXPIRY'] ?? 86400));
 define('DB_PATH',    __DIR__ . '/../' . ($_ENV['DB_NAME'] ?? 'el_halcon.db'));
+define('PROMOCIONES_PATH',      __DIR__ . '/../storage/promociones');
+// Las imágenes se comprimen a WEBP hasta este tamaño; los videos se rechazan si lo superan
+define('PROMOCIONES_MAX_BYTES_IMAGEN', (int) ($_ENV['PROMOCIONES_MAX_MB_IMAGEN'] ?? 2) * 1024 * 1024);
+define('PROMOCIONES_MAX_BYTES_VIDEO',  (int) ($_ENV['PROMOCIONES_MAX_MB_VIDEO'] ?? 25) * 1024 * 1024);
+// Tamaño exacto del área del carrusel en la pantalla de turnos (1920x1080, panel de turnos al 37,5%)
+define('PROMOCIONES_ANCHO',     1200);
+define('PROMOCIONES_ALTO',      1080);

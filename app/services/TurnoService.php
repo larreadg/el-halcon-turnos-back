@@ -147,8 +147,8 @@ class TurnoService
     }
 
     /**
-     * Datos para la pantalla pública: turnos en atención, últimos finalizados,
-     * y los que deben volver a sonar (consume y limpia llamar_nuevamente).
+     * Datos para la pantalla pública: turnos en atención, los que deben volver a sonar
+     * (consume y limpia llamar_nuevamente) y los últimos finalizados del día.
      */
     public function pantalla(): array
     {
@@ -182,8 +182,9 @@ class TurnoService
         }
 
         return [
-            'llamando'         => $llamando->fetchAll(),
-            'llamarNuevamente' => $llamarNuevamente,
+            'llamando'            => $llamando->fetchAll(),
+            'llamarNuevamente'    => $llamarNuevamente,
+            'ultimos_finalizados' => $this->ultimosLlamados(),
         ];
     }
 
